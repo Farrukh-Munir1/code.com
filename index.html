@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TVCode Pro</title>
+  <style>
+    body { margin:0; height:100vh; display:flex; flex-direction:column; font-family:sans-serif; }
+    header { background:#222; color:#fff; padding:0.5em; display:flex; align-items:center; gap:0.5em; }
+    header button { background:#444; color:#fff; border:none; padding:0.5em 1em; cursor:pointer; border-radius:4px; }
+    header button:hover { background:#666; }
+    #container { flex:1; display:flex; }
+    #editor { flex:1; }
+    #preview { flex:1; border-left:1px solid #ccc; }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+</head>
+<body>
+  <header>
+    <button onclick="runCode()">▶ Run</button>
+    <button onclick="saveProject()">💾 Save ZIP</button>
+    <button onclick="openProject()">📂 Open</button>
+    <button onclick="copyCode()">📋 Copy Code</button>
+  </header>
+  <div id="container">
+    <div id="editor"></div>
+    <iframe id="preview"></iframe>
+  </div>
+
+  <script>
+    let editor;
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' }});
+    require(["vs/editor/editor.main"], function () {
+      editor = monaco.editor.create(document.getElementById('editor'), {
+        value: "<!DOCTYPE html>\n<html>\n  <head>\n    <title>Hello TVCode Pro</title>\n  </head>\n  <body>\n    <h1>Welcome!</h1>\n  </body>\n</html>",
+        language: "html",
+        theme: "vs-dark",
+        automaticLayout: true,
+        minimap: { enabled: true },
+      });
+    });
+
+    function runCode() {
+      const code = editor.getValue();
+      const iframe = document.getElementById('preview');
+      iframe.srcdoc = code;
+    }
+
+    function saveProject() {
+      const zip = new JSZip();
+      zip.file("index.html", editor.getValue());
+      zip.generateAsync({type:"blob"}).then(content => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(content);
+        a.download = "project.zip";
+        a.click();
+      });
+    }
+
+    function openProject() {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".zip,.html";
+      input.onchange = async e => {
+        const file = e.target.files[0];
+        if(file.name.endsWith('.html')){
+          const text = await file.text();
+          editor.setValue(text);
+        } else {
+          const data = await file.arrayBuffer();
+          JSZip.loadAsync(data).then(zip => {
+            zip.forEach((relPath, file) => {
+              if(relPath.endsWith("index.html")){
+                file.async("string").then(content => editor.setValue(content));
+              }
+            });
+          });
+        }
+      }
+      input.click();
+    }
+
+    function copyCode(){
+      const code = editor.getValue();
+      navigator.clipboard.writeText(code).then(()=>{
+        alert("Code copied to clipboard!");
+      });
+    }
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+</body>
+</html>
